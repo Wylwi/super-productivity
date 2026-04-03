@@ -31,6 +31,7 @@ import com.superproductivity.superproductivity.webview.WebViewBlockActivity
 import com.superproductivity.superproductivity.webview.WebViewCompatibilityChecker
 import com.superproductivity.superproductivity.widget.ShareIntentQueue
 import com.superproductivity.superproductivity.widget.StartupOverlayManager
+import com.superproductivity.superproductivity.widget.TaskListWidgetProvider
 import com.superproductivity.plugins.webdavhttp.WebDavHttpPlugin
 import org.json.JSONObject
 
@@ -46,6 +47,7 @@ class CapacitorMainActivity : BridgeActivity() {
     private var startupOverlayManager: StartupOverlayManager? = null
     private var isTimerCompleteReceiverRegistered = false
     private var isForegroundServiceFailureReceiverRegistered = false
+    private var isWidgetDoneReceiverRegistered = false
 
     private val storageHelper =
         SimpleStorageHelper(this) // for scoped storage permission management on Android 10+
@@ -72,6 +74,17 @@ class CapacitorMainActivity : BridgeActivity() {
                 "onForegroundServiceStartFailed$",
                 "{service:${JSONObject.quote(service)},reason:${JSONObject.quote(reason)}}"
             )
+        }
+    }
+
+    private val widgetDoneReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == TaskListWidgetProvider.ACTION_WIDGET_DONE_LOCAL) {
+                val taskId = intent.getStringExtra(TaskListWidgetProvider.EXTRA_TASK_ID) ?: return
+                val sanitizedId = taskId.replace(Regex("[^a-zA-Z0-9_-]"), "")
+                Log.d("SP_WIDGET", "Widget done broadcast received: taskId=$sanitizedId")
+                callJSInterfaceFunctionIfExists("next", "onWidgetDone$", "'$sanitizedId'")
+            }
         }
     }
 
@@ -210,6 +223,13 @@ class CapacitorMainActivity : BridgeActivity() {
             IntentFilter(ForegroundServiceFailure.ACTION)
         )
         isForegroundServiceFailureReceiverRegistered = true
+
+        // Register broadcast receiver for widget done actions
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+            widgetDoneReceiver,
+            IntentFilter(TaskListWidgetProvider.ACTION_WIDGET_DONE_LOCAL)
+        )
+        isWidgetDoneReceiverRegistered = true
 
         // Show startup overlay for quick task entry while Angular loads.
         // Only on fresh cold start — not on config-change recreation.
@@ -445,6 +465,10 @@ class CapacitorMainActivity : BridgeActivity() {
                 foregroundServiceFailureReceiver
             )
             isForegroundServiceFailureReceiverRegistered = false
+        }
+        if (isWidgetDoneReceiverRegistered) {
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(widgetDoneReceiver)
+            isWidgetDoneReceiverRegistered = false
         }
         super.onDestroy()
     }
