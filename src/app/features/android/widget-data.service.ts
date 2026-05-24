@@ -1,12 +1,14 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { first } from 'rxjs/operators';
-import { selectTodayTaskIds } from '../work-context/store/work-context.selectors';
-import { selectTaskFeatureState } from '../tasks/store/task.selectors';
-import { selectProjectFeatureState } from '../project/store/project.selectors';
+import { firstValueFrom } from 'rxjs';
+import { createValidate } from 'typia';
+import { selectTodayWidgetRows, WidgetRow } from './store/widget.selectors';
 import { androidInterface } from './android-interface';
 import { DroidLog } from '../../core/log';
 import { HydrationStateService } from '../../op-log/apply/hydration-state.service';
+import { WidgetSnapshotV1 } from './android.model';
+
+const _validateWidgetSnapshot = createValidate<WidgetSnapshotV1>();
 
 @Injectable({ providedIn: 'root' })
 export class WidgetDataService {
@@ -18,65 +20,42 @@ export class WidgetDataService {
       return;
     }
 
-    const todayTaskIds = await this._store
-      .select(selectTodayTaskIds)
-      .pipe(first())
-      .toPromise();
-    const taskState = await this._store
-      .select(selectTaskFeatureState)
-      .pipe(first())
-      .toPromise();
-    const projectState = await this._store
-      .select(selectProjectFeatureState)
-      .pipe(first())
-      .toPromise();
+    const rows: WidgetRow[] = await firstValueFrom(
+      this._store.select(selectTodayWidgetRows),
+    );
 
-    if (!todayTaskIds || !taskState || !projectState) {
-      return;
-    }
-
-    const tasks: {
-      id: string;
-      title: string;
-      isDone: boolean;
-      projectId: string | null;
-    }[] = [];
-    const projectIds = new Set<string>();
-
-    for (const taskId of todayTaskIds) {
-      const task = taskState.entities[taskId];
-      if (!task) continue;
-      tasks.push({
-        id: task.id,
-        title: task.title,
-        isDone: task.isDone,
-        projectId: task.projectId || null,
-      });
-      if (task.projectId) {
-        projectIds.add(task.projectId);
-      }
-    }
+    const tasks = rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      isDone: r.isDone,
+      projectId: r.projectId,
+    }));
 
     const projects: Record<string, { title: string; color: string | null }> = {};
-    for (const pId of projectIds) {
-      const project = projectState.entities[pId];
-      if (project) {
-        projects[pId] = {
-          title: project.title,
-          color: project.theme?.primary || null,
+    for (const r of rows) {
+      if (r.projectId && !projects[r.projectId]) {
+        projects[r.projectId] = {
+          title: r.projectTitle ?? '',
+          color: r.color,
         };
       }
     }
 
-    const blob = JSON.stringify({
+    const snapshot: WidgetSnapshotV1 = {
       v: 1,
       ts: Date.now(),
       tasks,
       projects,
-    });
+    };
+
+    const validation = _validateWidgetSnapshot(snapshot);
+    if (!validation.success) {
+      DroidLog.err('Widget snapshot validation failed', validation.errors);
+      return;
+    }
 
     try {
-      await androidInterface.saveToDbWrapped('widget_data', blob);
+      await androidInterface.saveToDbWrapped('widget_data', JSON.stringify(snapshot));
       androidInterface.updateWidget?.();
     } catch (e) {
       DroidLog.err('Failed to push widget data', e);

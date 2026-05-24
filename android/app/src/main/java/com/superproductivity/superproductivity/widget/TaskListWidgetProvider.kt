@@ -10,10 +10,8 @@ import android.net.Uri
 import android.util.Log
 import android.widget.RemoteViews
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.superproductivity.superproductivity.App
 import com.superproductivity.superproductivity.CapacitorMainActivity
 import com.superproductivity.superproductivity.R
-import org.json.JSONObject
 
 class TaskListWidgetProvider : AppWidgetProvider() {
 
@@ -32,24 +30,36 @@ class TaskListWidgetProvider : AppWidgetProvider() {
 
         when (intent.action) {
             ACTION_MARK_DONE -> {
-                val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return
+                val taskId = intent.getStringExtra(EXTRA_TASK_ID)
+                if (taskId == null) {
+                    // Title taps fall through here because a ListView only has one
+                    // PendingIntentTemplate. The title's fill-in intent sets only
+                    // EXTRA_OPEN_APP, so detect that case and launch the app.
+                    if (intent.getBooleanExtra(EXTRA_OPEN_APP, false)) {
+                        context.startActivity(
+                            Intent(context, CapacitorMainActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                            }
+                        )
+                    }
+                    return
+                }
                 Log.d(TAG, "Mark done from widget: taskId=$taskId")
 
                 WidgetDoneQueue.addTaskId(context, taskId)
-                markDoneInWidgetData(context, taskId)
 
-                // Refresh widget to show updated state
+                // Refresh widget to show updated state (pending indicator picks up the queue entry)
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val widgetIds = appWidgetManager.getAppWidgetIds(
                     ComponentName(context, TaskListWidgetProvider::class.java)
                 )
                 appWidgetManager.notifyAppWidgetViewDataChanged(widgetIds, R.id.widget_task_list)
 
-                // Notify app if alive via LocalBroadcast
-                val localIntent = Intent(ACTION_WIDGET_DONE_LOCAL).apply {
-                    putExtra(EXTRA_TASK_ID, taskId)
-                }
-                LocalBroadcastManager.getInstance(context).sendBroadcast(localIntent)
+                // Signal the live app (if any) to drain the queue. No task ID payload — the
+                // queue is the single source of truth.
+                LocalBroadcastManager.getInstance(context)
+                    .sendBroadcast(Intent(ACTION_WIDGET_DONE_LOCAL))
             }
             ACTION_OPEN_APP -> {
                 val openIntent = Intent(context, CapacitorMainActivity::class.java).apply {
@@ -57,25 +67,6 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 }
                 context.startActivity(openIntent)
             }
-        }
-    }
-
-    private fun markDoneInWidgetData(context: Context, taskId: String) {
-        try {
-            val store = (context.applicationContext as App).keyValStore
-            val json = store.get("widget_data", "{}")
-            val root = JSONObject(json)
-            val tasks = root.optJSONArray("tasks") ?: return
-            for (i in 0 until tasks.length()) {
-                val task = tasks.getJSONObject(i)
-                if (task.getString("id") == taskId) {
-                    task.put("isDone", true)
-                    break
-                }
-            }
-            store.set("widget_data", root.toString())
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to update widget_data for done task", e)
         }
     }
 

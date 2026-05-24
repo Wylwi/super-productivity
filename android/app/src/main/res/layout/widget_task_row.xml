@@ -16,7 +16,7 @@
         android:layout_height="6dp"
         android:layout_marginEnd="8dp"
         android:background="#2196F3"
-        android:contentDescription="" />
+        android:importantForAccessibility="no" />
 
     <ImageView
         android:id="@+id/widget_done_checkbox"
@@ -36,5 +36,15 @@
         android:textSize="14sp"
         android:maxLines="2"
         android:ellipsize="end" />
+
+    <ImageView
+        android:id="@+id/widget_pending_sync"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="6dp"
+        android:src="@android:drawable/ic_popup_sync"
+        android:visibility="gone"
+        android:contentDescription="@string/widget_pending_sync_desc"
+        android:alpha="0.7" />
 
 </LinearLayout>

@@ -34,4 +34,26 @@ object WidgetDoneQueue {
         }
         return data
     }
+
+    /**
+     * Non-clearing read of currently queued task IDs. Used by the widget to render
+     * a "pending sync" indicator on rows whose done action has not yet been
+     * processed by Angular. The actual clear happens via [getAndClear] during the
+     * drain flow.
+     */
+    @Synchronized
+    fun peek(context: Context): Set<String> {
+        val prefs = getPrefs(context)
+        val data = prefs.getString(KEY_DONE_TASKS, null) ?: return emptySet()
+        return try {
+            val array = JSONArray(data)
+            val ids = HashSet<String>(array.length())
+            for (i in 0 until array.length()) {
+                ids.add(array.getString(i))
+            }
+            ids
+        } catch (_: Exception) {
+            emptySet()
+        }
+    }
 }

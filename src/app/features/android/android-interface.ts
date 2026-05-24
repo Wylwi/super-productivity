@@ -137,6 +137,9 @@ export interface AndroidInterface {
 
   // Widget done action callbacks
   onWidgetDone$: ReplaySubject<string>; // emits taskId
+  // Fires when the native widget signals that the SharedPreferences-backed queue
+  // should be drained immediately (e.g. user tapped done while app was alive).
+  onWidgetDoneDrainRequest$: Subject<void>;
 
   // Background sync credential bridge (for WorkManager-based reminder cancellation)
   setSuperSyncCredentials?(baseUrl: string, accessToken: string): void;
@@ -153,6 +156,26 @@ export type ForegroundServiceStartFailure = {
 // }, 7000);
 
 export const androidInterface: AndroidInterface = (window as any).SUPAndroid;
+
+// Atomically read + clear the SharedPreferences-backed widget done queue and emit
+// each ID through onWidgetDone$. Yields between dispatches per CLAUDE.md #11 so
+// large drains don't swamp the NgRx store.
+export const drainWidgetDoneQueue = async (): Promise<void> => {
+  try {
+    const doneQueue = androidInterface.getWidgetDoneQueue?.();
+    if (!doneQueue) {
+      return;
+    }
+    const taskIds: string[] = JSON.parse(doneQueue);
+    DroidLog.log('Drained widget done queue', taskIds);
+    for (const id of taskIds) {
+      androidInterface.onWidgetDone$.next(id);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  } catch (e) {
+    DroidLog.err('Failed to drain widget done queue', e);
+  }
+};
 
 if (IS_ANDROID_WEB_VIEW) {
   if (!androidInterface) {
@@ -173,6 +196,7 @@ if (IS_ANDROID_WEB_VIEW) {
   androidInterface.onReminderDone$ = new ReplaySubject(20);
   androidInterface.onReminderSnooze$ = new ReplaySubject(20);
   androidInterface.onWidgetDone$ = new ReplaySubject(20);
+  androidInterface.onWidgetDoneDrainRequest$ = new Subject();
   androidInterface.onShareWithAttachment$ = new ReplaySubject(1);
   androidInterface.isKeyboardShown$ = new BehaviorSubject(false);
 
@@ -288,19 +312,9 @@ if (IS_ANDROID_WEB_VIEW) {
     DroidLog.err('Failed to parse reminder snooze queue', e);
   }
 
-  // Pull-based: retrieve queued "Done" task IDs from widget actions
-  try {
-    const widgetDoneQueue = androidInterface.getWidgetDoneQueue?.();
-    if (widgetDoneQueue) {
-      const taskIds: string[] = JSON.parse(widgetDoneQueue);
-      DroidLog.log('Pulled widget done queue from SharedPreferences', taskIds);
-      for (const id of taskIds) {
-        androidInterface.onWidgetDone$.next(id);
-      }
-    }
-  } catch (e) {
-    DroidLog.err('Failed to parse widget done queue', e);
-  }
+  // Pull-based: drain any queued "Done" task IDs left behind by widget taps while
+  // the app was dead. Same drain function is used on resume + on broadcast.
+  drainWidgetDoneQueue();
 
   // Push-based: sets isFrontendReady=true on native side for warm-start shares
   androidInterface.triggerGetShareData?.();

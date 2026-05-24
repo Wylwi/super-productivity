@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.util.Log
+import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.superproductivity.superproductivity.App
@@ -29,10 +30,12 @@ private class TaskListRemoteViewsFactory(
 ) : RemoteViewsService.RemoteViewsFactory {
 
     private var tasks: List<WidgetTask> = emptyList()
+    private var pendingIds: Set<String> = emptySet()
 
     override fun onCreate() {}
 
     override fun onDataSetChanged() {
+        pendingIds = WidgetDoneQueue.peek(context)
         try {
             val json = (context.applicationContext as App).keyValStore.get("widget_data", "{}")
             val root = JSONObject(json)
@@ -40,7 +43,7 @@ private class TaskListRemoteViewsFactory(
             val projects = root.optJSONObject("projects")
 
             val loaded = mutableListOf<WidgetTask>()
-            val limit = minOf(tasksArray.length(), 20)
+            val limit = minOf(tasksArray.length(), MAX_WIDGET_TASKS)
             for (i in 0 until limit) {
                 val task = tasksArray.getJSONObject(i)
                 val projectId = task.optString("projectId", null)
@@ -94,6 +97,13 @@ private class TaskListRemoteViewsFactory(
         }
         rv.setInt(R.id.widget_project_dot, "setBackgroundColor", color)
 
+        // Pending sync indicator: visible while the done action sits in the
+        // WidgetDoneQueue waiting for Angular to drain and write back.
+        rv.setViewVisibility(
+            R.id.widget_pending_sync,
+            if (pendingIds.contains(task.id)) View.VISIBLE else View.GONE
+        )
+
         val fillInIntent = Intent().apply {
             putExtra(TaskListWidgetProvider.EXTRA_TASK_ID, task.id)
         }
@@ -109,11 +119,14 @@ private class TaskListRemoteViewsFactory(
 
     override fun getLoadingView(): RemoteViews? = null
     override fun getViewTypeCount(): Int = 1
-    override fun getItemId(position: Int): Long = position.toLong()
-    override fun hasStableIds(): Boolean = false
+    override fun getItemId(position: Int): Long =
+        tasks.getOrNull(position)?.id?.hashCode()?.toLong() ?: position.toLong()
+
+    override fun hasStableIds(): Boolean = true
 
     companion object {
         private const val TAG = "TaskListWidget"
         private const val DEFAULT_DOT_COLOR = 0xFF2196F3.toInt()
+        private const val MAX_WIDGET_TASKS = 20
     }
 }

@@ -1,18 +1,24 @@
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
-import { combineLatest } from 'rxjs';
-import { debounceTime, distinctUntilChanged, filter, map, tap } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, filter, tap } from 'rxjs/operators';
 import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
-import { androidInterface } from '../android-interface';
+import { androidInterface, drainWidgetDoneQueue } from '../android-interface';
 import { WidgetDataService } from '../widget-data.service';
 import { TaskService } from '../../tasks/task.service';
 import { SnackService } from '../../../core/snack/snack.service';
 import { DroidLog } from '../../../core/log';
 import { HydrationStateService } from '../../../op-log/apply/hydration-state.service';
-import { selectTodayTaskIds } from '../../work-context/store/work-context.selectors';
-import { selectTaskEntities } from '../../tasks/store/task.selectors';
-import { selectAllProjectColorsAndTitles } from '../../project/store/project.selectors';
+import { selectTodayWidgetRows, WidgetRow } from './widget.selectors';
+import { T } from '../../../t.const';
+
+const rowsSignature = (rows: WidgetRow[]): string =>
+  rows
+    .map(
+      (r) =>
+        `${r.id}:${r.isDone ? 1 : 0}:${r.title}:${r.projectId ?? ''}:${r.color ?? ''}:${r.projectTitle ?? ''}`,
+    )
+    .join('|');
 
 @Injectable()
 export class AndroidWidgetEffects {
@@ -22,24 +28,20 @@ export class AndroidWidgetEffects {
   private _snackService = inject(SnackService);
   private _hydrationState = inject(HydrationStateService);
 
+  // Selector-based effect (exception to CLAUDE.md #8) because we need to react to
+  // state shape, not specific actions — many different actions can change a
+  // today task's title/isDone/projectId. Guarded with isApplyingRemoteOps() so
+  // hydration replay does not write. The single post-hydration emission is
+  // intentional: it pushes a fresh widget snapshot after a remote sync.
   pushOnStateChange$ =
     IS_ANDROID_WEB_VIEW &&
     createEffect(
       () =>
-        combineLatest([
-          this._store.select(selectTodayTaskIds),
-          this._store.select(selectTaskEntities),
-          this._store.select(selectAllProjectColorsAndTitles),
-        ]).pipe(
+        this._store.select(selectTodayWidgetRows).pipe(
           filter(() => !this._hydrationState.isApplyingRemoteOps()),
-          map(([todayIds, entities, _projects]) => {
-            const relevant = todayIds.map((id) => {
-              const t = entities[id];
-              return t ? `${t.id}:${t.isDone}:${t.title}` : '';
-            });
-            return relevant.join('|');
-          }),
-          distinctUntilChanged(),
+          distinctUntilChanged(
+            (a, b) => a.length === b.length && rowsSignature(a) === rowsSignature(b),
+          ),
           debounceTime(500),
           tap(() => {
             this._widgetDataService.serialize();
@@ -60,25 +62,22 @@ export class AndroidWidgetEffects {
       { dispatch: false },
     );
 
+  // Drain the queue whenever the app resumes (warm start) or when a widget tap
+  // signals "drain now" via LocalBroadcast (app already alive). The queue is the
+  // single source of truth — broadcast carries no task ID.
   drainWidgetDoneQueueOnResume$ =
     IS_ANDROID_WEB_VIEW &&
     createEffect(
+      () => androidInterface.onResume$.pipe(tap(() => drainWidgetDoneQueue())),
+      { dispatch: false },
+    );
+
+  drainWidgetDoneQueueOnRequest$ =
+    IS_ANDROID_WEB_VIEW &&
+    createEffect(
       () =>
-        androidInterface.onResume$.pipe(
-          tap(() => {
-            try {
-              const doneQueue = androidInterface.getWidgetDoneQueue?.();
-              if (doneQueue) {
-                const taskIds: string[] = JSON.parse(doneQueue);
-                DroidLog.log('Resume: found widget done queue', taskIds);
-                for (const id of taskIds) {
-                  androidInterface.onWidgetDone$.next(id);
-                }
-              }
-            } catch (e) {
-              DroidLog.err('Failed to process widget done queue on resume', e);
-            }
-          }),
+        androidInterface.onWidgetDoneDrainRequest$.pipe(
+          tap(() => drainWidgetDoneQueue()),
         ),
       { dispatch: false },
     );
@@ -93,7 +92,7 @@ export class AndroidWidgetEffects {
             this._taskService.setDone(taskId);
             this._snackService.open({
               type: 'SUCCESS',
-              msg: 'Task marked done from widget',
+              msg: T.GLOBAL_SNACK.WIDGET_TASK_DONE,
             });
           }),
         ),

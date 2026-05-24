@@ -80,10 +80,8 @@ class CapacitorMainActivity : BridgeActivity() {
     private val widgetDoneReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == TaskListWidgetProvider.ACTION_WIDGET_DONE_LOCAL) {
-                val taskId = intent.getStringExtra(TaskListWidgetProvider.EXTRA_TASK_ID) ?: return
-                val sanitizedId = taskId.replace(Regex("[^a-zA-Z0-9_-]"), "")
-                Log.d("SP_WIDGET", "Widget done broadcast received: taskId=$sanitizedId")
-                callJSInterfaceFunctionIfExists("next", "onWidgetDone$", "'$sanitizedId'")
+                Log.d("SP_WIDGET", "Widget done broadcast received, triggering JS drain")
+                callJSInterfaceFunctionIfExists("next", "onWidgetDoneDrainRequest$")
             }
         }
     }
