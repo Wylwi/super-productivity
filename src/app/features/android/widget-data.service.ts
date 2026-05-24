@@ -10,6 +10,27 @@ import { WidgetSnapshotV1 } from './android.model';
 
 const _validateWidgetSnapshot = createValidate<WidgetSnapshotV1>();
 
+export const buildWidgetSnapshot = (rows: WidgetRow[], ts: number): WidgetSnapshotV1 => {
+  const tasks = rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    isDone: r.isDone,
+    projectId: r.projectId,
+  }));
+
+  const projects: Record<string, { title: string; color: string | null }> = {};
+  for (const r of rows) {
+    if (r.projectId && !projects[r.projectId]) {
+      projects[r.projectId] = {
+        title: r.projectTitle ?? '',
+        color: r.color,
+      };
+    }
+  }
+
+  return { v: 1, ts, tasks, projects };
+};
+
 @Injectable({ providedIn: 'root' })
 export class WidgetDataService {
   private _store = inject(Store);
@@ -24,29 +45,7 @@ export class WidgetDataService {
       this._store.select(selectTodayWidgetRows),
     );
 
-    const tasks = rows.map((r) => ({
-      id: r.id,
-      title: r.title,
-      isDone: r.isDone,
-      projectId: r.projectId,
-    }));
-
-    const projects: Record<string, { title: string; color: string | null }> = {};
-    for (const r of rows) {
-      if (r.projectId && !projects[r.projectId]) {
-        projects[r.projectId] = {
-          title: r.projectTitle ?? '',
-          color: r.color,
-        };
-      }
-    }
-
-    const snapshot: WidgetSnapshotV1 = {
-      v: 1,
-      ts: Date.now(),
-      tasks,
-      projects,
-    };
+    const snapshot = buildWidgetSnapshot(rows, Date.now());
 
     const validation = _validateWidgetSnapshot(snapshot);
     if (!validation.success) {

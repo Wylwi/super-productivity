@@ -12,7 +12,7 @@ import { HydrationStateService } from '../../../op-log/apply/hydration-state.ser
 import { selectTodayWidgetRows, WidgetRow } from './widget.selectors';
 import { T } from '../../../t.const';
 
-const rowsSignature = (rows: WidgetRow[]): string =>
+export const rowsSignature = (rows: WidgetRow[]): string =>
   rows
     .map(
       (r) =>
