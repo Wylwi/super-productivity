@@ -34,7 +34,6 @@ private class TaskListRemoteViewsFactory(
     override fun onCreate() {}
 
     override fun onDataSetChanged() {
-        pendingIds = WidgetDoneQueue.peek(context)
         try {
             val json = (context.applicationContext as App).keyValStore.get("widget_data", "{}")
             val root = JSONObject(json)
@@ -53,9 +52,16 @@ private class TaskListRemoteViewsFactory(
                 )
             }
             tasks = loaded
+
+            // Drop any intent whose target state matches the current snapshot,
+            // then show the sync indicator only for unresolved intents.
+            WidgetIntents.reconcile(context, loaded.associate { it.id to it.isDone })
+            val intents = WidgetIntents.peek(context)
+            pendingIds = intents.keys
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse widget data", e)
             tasks = emptyList()
+            pendingIds = WidgetIntents.peek(context).keys
         }
     }
 

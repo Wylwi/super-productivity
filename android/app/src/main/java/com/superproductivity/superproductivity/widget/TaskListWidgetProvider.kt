@@ -49,6 +49,9 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 Log.d(TAG, "Toggle from widget: taskId=$taskId targetDone=$targetDone")
 
                 WidgetDoneQueue.add(context, taskId, targetDone)
+                // Independent UX-only intent tracking — keeps the sync indicator
+                // visible across rapid taps and survives drain → setDone latency.
+                WidgetIntents.add(context, taskId, targetDone)
 
                 // Refresh widget to show updated state (pending indicator picks up the queue entry)
                 val appWidgetManager = AppWidgetManager.getInstance(context)
