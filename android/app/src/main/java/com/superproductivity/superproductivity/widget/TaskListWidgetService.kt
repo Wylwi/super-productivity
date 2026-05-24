@@ -2,6 +2,8 @@ package com.superproductivity.superproductivity.widget
 
 import android.content.Context
 import android.content.Intent
+import android.text.SpannableString
+import android.text.style.StrikethroughSpan
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
@@ -71,11 +73,16 @@ private class TaskListRemoteViewsFactory(
         }
 
         val task = tasks[position]
-        rv.setTextViewText(R.id.widget_task_title, task.title)
-
         if (task.isDone) {
+            val spanned = SpannableString(task.title).apply {
+                setSpan(StrikethroughSpan(), 0, length, 0)
+            }
+            rv.setTextViewText(R.id.widget_task_title, spanned)
+            rv.setTextColor(R.id.widget_task_title, TITLE_COLOR_DONE)
             rv.setImageViewResource(R.id.widget_done_checkbox, R.drawable.widget_checkbox_on)
         } else {
+            rv.setTextViewText(R.id.widget_task_title, task.title)
+            rv.setTextColor(R.id.widget_task_title, TITLE_COLOR)
             rv.setImageViewResource(R.id.widget_done_checkbox, R.drawable.widget_checkbox_off)
         }
 
@@ -110,5 +117,7 @@ private class TaskListRemoteViewsFactory(
     companion object {
         private const val TAG = "TaskListWidget"
         private const val MAX_WIDGET_TASKS = 20
+        private const val TITLE_COLOR = 0xFFFFFFFF.toInt()
+        private const val TITLE_COLOR_DONE = 0x80FFFFFF.toInt()
     }
 }
