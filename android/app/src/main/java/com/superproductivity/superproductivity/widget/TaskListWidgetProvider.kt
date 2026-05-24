@@ -78,10 +78,11 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 val ids = mgr.getAppWidgetIds(
                     ComponentName(context, TaskListWidgetProvider::class.java)
                 )
-                // Rebuild the widget chrome to reflect the new toggle icon and
-                // refresh the list to apply the filter.
-                for (id in ids) updateWidget(context, mgr, id)
+                // Refresh the list first (the factory re-reads the pref to filter),
+                // then rebuild the chrome so the toggle icon update is the last
+                // RemoteViews delivery the launcher receives.
                 mgr.notifyAppWidgetViewDataChanged(ids, R.id.widget_task_list)
+                for (id in ids) updateWidget(context, mgr, id)
             }
         }
     }
