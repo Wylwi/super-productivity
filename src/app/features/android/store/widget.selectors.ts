@@ -20,21 +20,23 @@ export const selectTodayWidgetRows = createSelector(
   selectAllProjectColorsAndTitles,
   (todayIds, entities, projects): WidgetRow[] => {
     const projectMap = projects as ProjectColorsAndTitles;
-    const rows: WidgetRow[] = [];
+    const undone: WidgetRow[] = [];
+    const done: WidgetRow[] = [];
     for (const id of todayIds) {
       const t = entities[id];
       if (!t) continue;
       const projectId = t.projectId || null;
       const info = projectId ? projectMap[projectId] : undefined;
-      rows.push({
+      const row: WidgetRow = {
         id: t.id,
         title: t.title,
         isDone: t.isDone,
         projectId,
         color: info?.color ?? null,
         projectTitle: info?.title ?? null,
-      });
+      };
+      (t.isDone ? done : undone).push(row);
     }
-    return rows;
+    return [...undone, ...done];
   },
 );
