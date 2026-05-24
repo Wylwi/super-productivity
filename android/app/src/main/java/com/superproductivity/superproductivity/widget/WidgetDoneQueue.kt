@@ -3,10 +3,12 @@ package com.superproductivity.superproductivity.widget
 import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
+import org.json.JSONObject
 
 /**
- * SharedPreferences-backed queue for persisting "Done" task IDs from widget checkbox actions.
- * Accumulates task IDs (multiple done presses before app opens) as a JSON array.
+ * SharedPreferences-backed queue for persisting widget done/undone toggles.
+ * Each entry is {"id": String, "isDone": Boolean} — `isDone` reflects the
+ * user's intent at tap-time (the desired new state), not the prior state.
  */
 object WidgetDoneQueue {
     private const val PREFS_NAME = "SuperProductivityWidgetDone"
@@ -17,11 +19,11 @@ object WidgetDoneQueue {
     }
 
     @Synchronized
-    fun addTaskId(context: Context, taskId: String) {
+    fun add(context: Context, taskId: String, isDone: Boolean) {
         val prefs = getPrefs(context)
         val existing = prefs.getString(KEY_DONE_TASKS, null)
         val array = if (existing != null) JSONArray(existing) else JSONArray()
-        array.put(taskId)
+        array.put(JSONObject().put("id", taskId).put("isDone", isDone))
         prefs.edit().putString(KEY_DONE_TASKS, array.toString()).commit()
     }
 
@@ -37,9 +39,8 @@ object WidgetDoneQueue {
 
     /**
      * Non-clearing read of currently queued task IDs. Used by the widget to render
-     * a "pending sync" indicator on rows whose done action has not yet been
-     * processed by Angular. The actual clear happens via [getAndClear] during the
-     * drain flow.
+     * a "pending sync" indicator on rows whose toggle has not yet been processed
+     * by Angular. The actual clear happens via [getAndClear] during the drain flow.
      */
     @Synchronized
     fun peek(context: Context): Set<String> {
@@ -49,7 +50,7 @@ object WidgetDoneQueue {
             val array = JSONArray(data)
             val ids = HashSet<String>(array.length())
             for (i in 0 until array.length()) {
-                ids.add(array.getString(i))
+                ids.add(array.getJSONObject(i).getString("id"))
             }
             ids
         } catch (_: Exception) {

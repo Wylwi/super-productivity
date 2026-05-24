@@ -135,8 +135,9 @@ export interface AndroidInterface {
   onReminderSnooze$: ReplaySubject<{ taskId: string; newRemindAt: number }>; // emits snooze events
   getReminderSnoozeQueue?(): string | null;
 
-  // Widget done action callbacks
-  onWidgetDone$: ReplaySubject<string>; // emits taskId
+  // Widget toggle action callbacks. isDone is the desired NEW state at tap-time
+  // — true if user wants to mark done, false to mark undone.
+  onWidgetDone$: ReplaySubject<{ id: string; isDone: boolean }>;
   // Fires when the native widget signals that the SharedPreferences-backed queue
   // should be drained immediately (e.g. user tapped done while app was alive).
   onWidgetDoneDrainRequest$: Subject<void>;
@@ -157,19 +158,19 @@ export type ForegroundServiceStartFailure = {
 
 export const androidInterface: AndroidInterface = (window as any).SUPAndroid;
 
-// Atomically read + clear the SharedPreferences-backed widget done queue and emit
-// each ID through onWidgetDone$. Yields between dispatches per CLAUDE.md #11 so
-// large drains don't swamp the NgRx store.
+// Atomically read + clear the SharedPreferences-backed widget toggle queue and
+// emit each entry through onWidgetDone$. Yields between dispatches per
+// CLAUDE.md #11 so large drains don't swamp the NgRx store.
 export const drainWidgetDoneQueue = async (): Promise<void> => {
   try {
     const doneQueue = androidInterface.getWidgetDoneQueue?.();
     if (!doneQueue) {
       return;
     }
-    const taskIds: string[] = JSON.parse(doneQueue);
-    DroidLog.log('Drained widget done queue', taskIds);
-    for (const id of taskIds) {
-      androidInterface.onWidgetDone$.next(id);
+    const entries: { id: string; isDone: boolean }[] = JSON.parse(doneQueue);
+    DroidLog.log('Drained widget done queue', entries);
+    for (const entry of entries) {
+      androidInterface.onWidgetDone$.next(entry);
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   } catch (e) {

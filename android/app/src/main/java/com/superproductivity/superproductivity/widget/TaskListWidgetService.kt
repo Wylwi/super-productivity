@@ -88,6 +88,7 @@ private class TaskListRemoteViewsFactory(
 
         val fillInIntent = Intent().apply {
             putExtra(TaskListWidgetProvider.EXTRA_TASK_ID, task.id)
+            putExtra(TaskListWidgetProvider.EXTRA_TARGET_DONE, !task.isDone)
         }
         rv.setOnClickFillInIntent(R.id.widget_done_checkbox, fillInIntent)
 

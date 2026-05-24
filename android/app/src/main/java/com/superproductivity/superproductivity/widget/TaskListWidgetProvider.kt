@@ -45,9 +45,10 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                     }
                     return
                 }
-                Log.d(TAG, "Mark done from widget: taskId=$taskId")
+                val targetDone = intent.getBooleanExtra(EXTRA_TARGET_DONE, true)
+                Log.d(TAG, "Toggle from widget: taskId=$taskId targetDone=$targetDone")
 
-                WidgetDoneQueue.addTaskId(context, taskId)
+                WidgetDoneQueue.add(context, taskId, targetDone)
 
                 // Refresh widget to show updated state (pending indicator picks up the queue entry)
                 val appWidgetManager = AppWidgetManager.getInstance(context)
@@ -77,6 +78,7 @@ class TaskListWidgetProvider : AppWidgetProvider() {
         const val ACTION_WIDGET_DONE_LOCAL = "com.superproductivity.superproductivity.WIDGET_DONE_LOCAL"
         const val EXTRA_TASK_ID = "WIDGET_TASK_ID"
         const val EXTRA_OPEN_APP = "WIDGET_OPEN_APP"
+        const val EXTRA_TARGET_DONE = "WIDGET_TARGET_DONE"
 
         fun notifyDataChanged(context: Context) {
             val appWidgetManager = AppWidgetManager.getInstance(context)

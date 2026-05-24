@@ -2518,7 +2518,8 @@
     "SHARE_FAILED_FALLBACK": "Sharing failed. Copied to clipboard instead.",
     "SHARE_UNAVAILABLE_FALLBACK": "Copied to clipboard.",
     "UNPLANNED_TODAY_TASKS": "Unplanned all tasks from Today",
-    "WIDGET_TASK_DONE": "Task marked done from widget"
+    "WIDGET_TASK_DONE": "Task marked done from widget",
+    "WIDGET_TASK_UNDONE": "Task marked undone from widget"
   },
   "GPB": {
     "ASSETS": "Loading assets...",

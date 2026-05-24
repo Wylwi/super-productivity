@@ -87,12 +87,18 @@ export class AndroidWidgetEffects {
     createEffect(
       () =>
         androidInterface.onWidgetDone$.pipe(
-          tap((taskId: string) => {
-            DroidLog.log('Widget done action for task', { id: taskId });
-            this._taskService.setDone(taskId);
+          tap(({ id, isDone }) => {
+            DroidLog.log('Widget toggle for task', { id, isDone });
+            if (isDone) {
+              this._taskService.setDone(id);
+            } else {
+              this._taskService.setUnDone(id);
+            }
             this._snackService.open({
               type: 'SUCCESS',
-              msg: T.GLOBAL_SNACK.WIDGET_TASK_DONE,
+              msg: isDone
+                ? T.GLOBAL_SNACK.WIDGET_TASK_DONE
+                : T.GLOBAL_SNACK.WIDGET_TASK_UNDONE,
             });
           }),
         ),
