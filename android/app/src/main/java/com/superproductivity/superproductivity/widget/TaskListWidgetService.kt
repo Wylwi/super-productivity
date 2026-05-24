@@ -2,7 +2,6 @@ package com.superproductivity.superproductivity.widget
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
@@ -21,8 +20,6 @@ private data class WidgetTask(
     val id: String,
     val title: String,
     val isDone: Boolean,
-    val projectId: String?,
-    val projectColor: String?
 )
 
 private class TaskListRemoteViewsFactory(
@@ -40,24 +37,16 @@ private class TaskListRemoteViewsFactory(
             val json = (context.applicationContext as App).keyValStore.get("widget_data", "{}")
             val root = JSONObject(json)
             val tasksArray = root.optJSONArray("tasks") ?: return
-            val projects = root.optJSONObject("projects")
 
             val loaded = mutableListOf<WidgetTask>()
             val limit = minOf(tasksArray.length(), MAX_WIDGET_TASKS)
             for (i in 0 until limit) {
                 val task = tasksArray.getJSONObject(i)
-                val projectId = task.optString("projectId", null)
-                val projectColor = if (projectId != null && projects != null) {
-                    projects.optJSONObject(projectId)?.optString("color", null)
-                } else null
-
                 loaded.add(
                     WidgetTask(
                         id = task.getString("id"),
                         title = task.getString("title"),
                         isDone = task.optBoolean("isDone", false),
-                        projectId = projectId,
-                        projectColor = projectColor
                     )
                 )
             }
@@ -85,17 +74,10 @@ private class TaskListRemoteViewsFactory(
         rv.setTextViewText(R.id.widget_task_title, task.title)
 
         if (task.isDone) {
-            rv.setImageViewResource(R.id.widget_done_checkbox, android.R.drawable.checkbox_on_background)
+            rv.setImageViewResource(R.id.widget_done_checkbox, R.drawable.widget_checkbox_on)
         } else {
-            rv.setImageViewResource(R.id.widget_done_checkbox, android.R.drawable.checkbox_off_background)
+            rv.setImageViewResource(R.id.widget_done_checkbox, R.drawable.widget_checkbox_off)
         }
-
-        val color = try {
-            if (task.projectColor != null) Color.parseColor(task.projectColor) else DEFAULT_DOT_COLOR
-        } catch (e: Exception) {
-            DEFAULT_DOT_COLOR
-        }
-        rv.setInt(R.id.widget_project_dot, "setBackgroundColor", color)
 
         // Pending sync indicator: visible while the done action sits in the
         // WidgetDoneQueue waiting for Angular to drain and write back.
@@ -126,7 +108,6 @@ private class TaskListRemoteViewsFactory(
 
     companion object {
         private const val TAG = "TaskListWidget"
-        private const val DEFAULT_DOT_COLOR = 0xFF2196F3.toInt()
         private const val MAX_WIDGET_TASKS = 20
     }
 }

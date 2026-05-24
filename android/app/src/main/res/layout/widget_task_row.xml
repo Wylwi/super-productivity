@@ -4,26 +4,18 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingStart="4dp"
-    android:paddingEnd="8dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp"
+    android:paddingStart="8dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp"
     android:minHeight="40dp">
 
     <ImageView
-        android:id="@+id/widget_project_dot"
-        android:layout_width="6dp"
-        android:layout_height="6dp"
-        android:layout_marginEnd="8dp"
-        android:background="#2196F3"
-        android:importantForAccessibility="no" />
-
-    <ImageView
         android:id="@+id/widget_done_checkbox"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:layout_marginEnd="8dp"
-        android:src="@android:drawable/checkbox_off_background"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_marginEnd="12dp"
+        android:src="@drawable/widget_checkbox_off"
         android:scaleType="fitCenter"
         android:contentDescription="@string/widget_task_done" />
 
@@ -33,7 +25,9 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:textColor="#FFFFFF"
-        android:textSize="14sp"
+        android:textSize="15sp"
+        android:fontFamily="sans-serif"
+        android:lineSpacingExtra="2dp"
         android:maxLines="2"
         android:ellipsize="end" />
 
@@ -41,7 +35,7 @@
         android:id="@+id/widget_pending_sync"
         android:layout_width="16dp"
         android:layout_height="16dp"
-        android:layout_marginStart="6dp"
+        android:layout_marginStart="8dp"
         android:src="@android:drawable/ic_popup_sync"
         android:visibility="gone"
         android:contentDescription="@string/widget_pending_sync_desc"
