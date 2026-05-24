@@ -39,11 +39,11 @@ private class TaskListRemoteViewsFactory(
             val root = JSONObject(json)
             val tasksArray = root.optJSONArray("tasks") ?: return
 
-            val loaded = mutableListOf<WidgetTask>()
+            val all = mutableListOf<WidgetTask>()
             val limit = minOf(tasksArray.length(), MAX_WIDGET_TASKS)
             for (i in 0 until limit) {
                 val task = tasksArray.getJSONObject(i)
-                loaded.add(
+                all.add(
                     WidgetTask(
                         id = task.getString("id"),
                         title = task.getString("title"),
@@ -51,13 +51,14 @@ private class TaskListRemoteViewsFactory(
                     )
                 )
             }
-            tasks = loaded
 
-            // Drop any intent whose target state matches the current snapshot,
-            // then show the sync indicator only for unresolved intents.
-            WidgetIntents.reconcile(context, loaded.associate { it.id to it.isDone })
-            val intents = WidgetIntents.peek(context)
-            pendingIds = intents.keys
+            // Reconcile intents against the full snapshot before filtering — so
+            // pending state can clear even for rows we're about to hide.
+            WidgetIntents.reconcile(context, all.associate { it.id to it.isDone })
+            pendingIds = WidgetIntents.peek(context).keys
+
+            val hideDone = WidgetSettings.isHideDone(context)
+            tasks = if (hideDone) all.filterNot { it.isDone } else all
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse widget data", e)
             tasks = emptyList()

@@ -30,6 +30,7 @@
   <string name="widget_empty">No tasks for today</string>
   <string name="widget_task_done">Mark task done</string>
   <string name="widget_pending_sync_desc">Done action pending — syncing with app</string>
+  <string name="widget_toggle_hide_done_desc">Toggle visibility of completed tasks</string>
 
   <!-- Startup overlay -->
   <string name="startup_overlay_add_task">Add task</string>

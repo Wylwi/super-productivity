@@ -71,6 +71,18 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 }
                 context.startActivity(openIntent)
             }
+            ACTION_TOGGLE_HIDE_DONE -> {
+                val nowHiding = WidgetSettings.toggleHideDone(context)
+                Log.d(TAG, "Toggled hideDone -> $nowHiding")
+                val mgr = AppWidgetManager.getInstance(context)
+                val ids = mgr.getAppWidgetIds(
+                    ComponentName(context, TaskListWidgetProvider::class.java)
+                )
+                // Rebuild the widget chrome to reflect the new toggle icon and
+                // refresh the list to apply the filter.
+                for (id in ids) updateWidget(context, mgr, id)
+                mgr.notifyAppWidgetViewDataChanged(ids, R.id.widget_task_list)
+            }
         }
     }
 
@@ -79,6 +91,7 @@ class TaskListWidgetProvider : AppWidgetProvider() {
         const val ACTION_MARK_DONE = "com.superproductivity.superproductivity.WIDGET_MARK_DONE"
         const val ACTION_OPEN_APP = "com.superproductivity.superproductivity.WIDGET_OPEN_APP"
         const val ACTION_WIDGET_DONE_LOCAL = "com.superproductivity.superproductivity.WIDGET_DONE_LOCAL"
+        const val ACTION_TOGGLE_HIDE_DONE = "com.superproductivity.superproductivity.WIDGET_TOGGLE_HIDE_DONE"
         const val EXTRA_TASK_ID = "WIDGET_TASK_ID"
         const val EXTRA_OPEN_APP = "WIDGET_OPEN_APP"
         const val EXTRA_TARGET_DONE = "WIDGET_TARGET_DONE"
@@ -116,7 +129,7 @@ class TaskListWidgetProvider : AppWidgetProvider() {
             )
             views.setPendingIntentTemplate(R.id.widget_task_list, donePendingIntent)
 
-            // Header tap → open app
+            // Header text tap → open app
             val openAppIntent = Intent(context, CapacitorMainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
@@ -125,6 +138,21 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_header, openAppPendingIntent)
+
+            // Hide-done toggle: render current state + wire the broadcast.
+            val isHiding = WidgetSettings.isHideDone(context)
+            views.setImageViewResource(
+                R.id.widget_toggle_hide_done,
+                if (isHiding) R.drawable.widget_hide_done else R.drawable.widget_show_done
+            )
+            val toggleIntent = Intent(context, TaskListWidgetProvider::class.java).apply {
+                action = ACTION_TOGGLE_HIDE_DONE
+            }
+            val togglePendingIntent = PendingIntent.getBroadcast(
+                context, 0, toggleIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widget_toggle_hide_done, togglePendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
