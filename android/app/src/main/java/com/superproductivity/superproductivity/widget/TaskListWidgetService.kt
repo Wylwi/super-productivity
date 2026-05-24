@@ -52,8 +52,8 @@ private class TaskListRemoteViewsFactory(
                 )
             }
 
-            // Reconcile intents against the full snapshot before filtering — so
-            // pending state can clear even for rows we're about to hide.
+            // Reconcile against the full snapshot before filtering, so pending state
+            // can clear even for rows we're about to hide.
             WidgetIntents.reconcile(context, all.associate { it.id to it.isDone })
             pendingIds = WidgetIntents.peek(context).keys
 
@@ -93,8 +93,6 @@ private class TaskListRemoteViewsFactory(
             rv.setImageViewResource(R.id.widget_done_checkbox, R.drawable.widget_checkbox_off)
         }
 
-        // Pending sync indicator: visible while the done action sits in the
-        // WidgetDoneQueue waiting for Angular to drain and write back.
         rv.setViewVisibility(
             R.id.widget_pending_sync,
             if (pendingIds.contains(task.id)) View.VISIBLE else View.GONE

@@ -6,9 +6,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * SharedPreferences-backed queue for persisting widget done/undone toggles.
- * Each entry is {"id": String, "isDone": Boolean} — `isDone` reflects the
- * user's intent at tap-time (the desired new state), not the prior state.
+ * Atomic drain log for widget done/undone toggles. Each entry's `isDone` is the
+ * desired NEW state at tap-time, not the prior state.
  */
 object WidgetDoneQueue {
     private const val PREFS_NAME = "SuperProductivityWidgetDone"

@@ -222,7 +222,6 @@ class CapacitorMainActivity : BridgeActivity() {
         )
         isForegroundServiceFailureReceiverRegistered = true
 
-        // Register broadcast receiver for widget done actions
         LocalBroadcastManager.getInstance(this).registerReceiver(
             widgetDoneReceiver,
             IntentFilter(TaskListWidgetProvider.ACTION_WIDGET_DONE_LOCAL)

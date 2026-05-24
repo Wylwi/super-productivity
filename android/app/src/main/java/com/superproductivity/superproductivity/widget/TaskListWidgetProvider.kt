@@ -53,15 +53,14 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 // visible across rapid taps and survives drain → setDone latency.
                 WidgetIntents.add(context, taskId, targetDone)
 
-                // Refresh widget to show updated state (pending indicator picks up the queue entry)
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val widgetIds = appWidgetManager.getAppWidgetIds(
                     ComponentName(context, TaskListWidgetProvider::class.java)
                 )
                 appWidgetManager.notifyAppWidgetViewDataChanged(widgetIds, R.id.widget_task_list)
 
-                // Signal the live app (if any) to drain the queue. No task ID payload — the
-                // queue is the single source of truth.
+                // Signal the live app (if any) to drain the queue. No task ID payload —
+                // the queue is the single source of truth.
                 LocalBroadcastManager.getInstance(context)
                     .sendBroadcast(Intent(ACTION_WIDGET_DONE_LOCAL))
             }
@@ -112,7 +111,6 @@ class TaskListWidgetProvider : AppWidgetProvider() {
         ) {
             val views = RemoteViews(context.packageName, R.layout.widget_task_list)
 
-            // Set up the RemoteViews adapter for the ListView
             val serviceIntent = Intent(context, TaskListWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
@@ -120,7 +118,6 @@ class TaskListWidgetProvider : AppWidgetProvider() {
             views.setRemoteAdapter(R.id.widget_task_list, serviceIntent)
             views.setEmptyView(R.id.widget_task_list, R.id.widget_empty)
 
-            // PendingIntent template for done checkbox clicks
             val doneIntent = Intent(context, TaskListWidgetProvider::class.java).apply {
                 action = ACTION_MARK_DONE
             }
@@ -130,7 +127,6 @@ class TaskListWidgetProvider : AppWidgetProvider() {
             )
             views.setPendingIntentTemplate(R.id.widget_task_list, donePendingIntent)
 
-            // Header text tap → open app
             val openAppIntent = Intent(context, CapacitorMainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
@@ -140,7 +136,6 @@ class TaskListWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_header, openAppPendingIntent)
 
-            // Hide-done toggle: render current state + wire the broadcast.
             val isHiding = WidgetSettings.isHideDone(context)
             views.setImageViewResource(
                 R.id.widget_toggle_hide_done,

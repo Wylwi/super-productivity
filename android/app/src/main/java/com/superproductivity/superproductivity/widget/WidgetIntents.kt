@@ -6,14 +6,10 @@ import org.json.JSONObject
 
 /**
  * Tracks the user's intended target state per task (id → desired isDone) for the
- * widget sync indicator. Independent of [WidgetDoneQueue], which is the atomic
- * drain log driving setDone/setUnDone dispatches.
- *
- * Why a separate store: the queue empties as soon as Angular drains it (often
- * within milliseconds when the app is alive). Multiple rapid taps would then
- * lose the pending visual indicator on all but the latest tap. This store
- * persists each intent until `widget_data` is verified to reflect it (via
- * [reconcile]), independent of when the queue gets drained.
+ * sync indicator. Separate from [WidgetDoneQueue] because that queue empties as
+ * soon as Angular drains it — multiple rapid taps would lose the indicator on
+ * all but the latest. Entries persist until [reconcile] verifies them against
+ * widget_data.
  */
 object WidgetIntents {
     private const val PREFS_NAME = "SuperProductivityWidgetIntents"
@@ -32,7 +28,6 @@ object WidgetIntents {
         prefs.edit().putString(KEY_INTENTS, obj.toString()).commit()
     }
 
-    /** Map of taskId → target isDone for all currently pending intents. */
     @Synchronized
     fun peek(context: Context): Map<String, Boolean> {
         val prefs = getPrefs(context)
@@ -52,10 +47,8 @@ object WidgetIntents {
     }
 
     /**
-     * Removes any intent that is either (a) already reflected in the snapshot —
-     * the target state matches the current state — or (b) no longer relevant
-     * because its task ID is absent from the snapshot (e.g. moved to archive).
-     * Called from the factory once widget_data has been read.
+     * Drops intents that are either reflected in the snapshot (target matches
+     * current) or stale (id no longer in the snapshot, e.g. moved to archive).
      */
     @Synchronized
     fun reconcile(context: Context, currentDoneState: Map<String, Boolean>) {

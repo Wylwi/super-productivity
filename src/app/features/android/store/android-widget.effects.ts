@@ -62,9 +62,7 @@ export class AndroidWidgetEffects {
       { dispatch: false },
     );
 
-  // Drain the queue whenever the app resumes (warm start) or when a widget tap
-  // signals "drain now" via LocalBroadcast (app already alive). The queue is the
-  // single source of truth — broadcast carries no task ID.
+  // Queue is the single source of truth — broadcast carries no task ID.
   drainWidgetDoneQueueOnResume$ =
     IS_ANDROID_WEB_VIEW &&
     createEffect(

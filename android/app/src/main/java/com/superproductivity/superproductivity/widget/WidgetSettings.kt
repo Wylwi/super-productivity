@@ -3,10 +3,6 @@ package com.superproductivity.superproductivity.widget
 import android.content.Context
 import android.content.SharedPreferences
 
-/**
- * Persistent widget UI preferences. Backed by SharedPreferences so settings
- * survive process death and device reboots.
- */
 object WidgetSettings {
     private const val PREFS_NAME = "SuperProductivityWidgetSettings"
     private const val KEY_HIDE_DONE = "HIDE_DONE"
