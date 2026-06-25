@@ -96,6 +96,9 @@ export interface AndroidInterface {
   // Widget done queue - get task IDs marked done from widget
   getWidgetDoneQueue?(): string | null;
 
+  // Widget task tap queue - get queued task ID from widget click
+  getWidgetTaskTapQueue?(): string | null;
+
   // Widget update - trigger native widget refresh
   updateWidget?(): void;
 
@@ -141,6 +144,9 @@ export interface AndroidInterface {
   // Fires when the native widget signals that the SharedPreferences-backed queue
   // should be drained immediately (e.g. user tapped done while app was alive).
   onWidgetDoneDrainRequest$: Subject<void>;
+
+  // Widget task click action callback
+  onWidgetTaskTap$: ReplaySubject<string>; // emits taskId
 
   // Background sync credential bridge (for WorkManager-based reminder cancellation)
   setSuperSyncCredentials?(baseUrl: string, accessToken: string): void;
@@ -198,6 +204,7 @@ if (IS_ANDROID_WEB_VIEW) {
   androidInterface.onReminderSnooze$ = new ReplaySubject(20);
   androidInterface.onWidgetDone$ = new ReplaySubject(20);
   androidInterface.onWidgetDoneDrainRequest$ = new Subject();
+  androidInterface.onWidgetTaskTap$ = new ReplaySubject(5);
   androidInterface.onShareWithAttachment$ = new ReplaySubject(1);
   androidInterface.isKeyboardShown$ = new BehaviorSubject(false);
 
@@ -283,6 +290,17 @@ if (IS_ANDROID_WEB_VIEW) {
     }
   } catch (e) {
     DroidLog.err('Failed to parse reminder tap queue', e);
+  }
+
+  // Pull-based: retrieve queued tap task ID from widget click (cold start)
+  try {
+    const tapTaskId = androidInterface.getWidgetTaskTapQueue?.();
+    if (tapTaskId) {
+      DroidLog.log('Pulled widget task tap queue from SharedPreferences', tapTaskId);
+      androidInterface.onWidgetTaskTap$.next(tapTaskId);
+    }
+  } catch (e) {
+    DroidLog.err('Failed to parse widget task tap queue', e);
   }
 
   // Pull-based: retrieve queued "Done" task IDs from notification actions

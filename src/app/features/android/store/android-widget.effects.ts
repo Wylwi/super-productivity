@@ -1,3 +1,4 @@
+import { combineLatest } from 'rxjs';
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
@@ -10,13 +11,15 @@ import { SnackService } from '../../../core/snack/snack.service';
 import { DroidLog } from '../../../core/log';
 import { HydrationStateService } from '../../../op-log/apply/hydration-state.service';
 import { selectTodayWidgetRows, WidgetRow } from './widget.selectors';
+import { selectUnarchivedProjects } from '../../project/store/project.selectors';
+import { selectAllTags } from '../../tag/store/tag.reducer';
 import { T } from '../../../t.const';
 
 export const rowsSignature = (rows: WidgetRow[]): string =>
   rows
     .map(
       (r) =>
-        `${r.id}:${r.isDone ? 1 : 0}:${r.title}:${r.projectId ?? ''}:${r.color ?? ''}:${r.projectTitle ?? ''}`,
+        `${r.id}:${r.isDone ? 1 : 0}:${r.title}:${r.projectId ?? ''}:${r.color ?? ''}:${r.projectTitle ?? ''}:${r.isToday ? 1 : 0}`,
     )
     .join('|');
 
@@ -30,17 +33,25 @@ export class AndroidWidgetEffects {
 
   // Selector-based effect (exception to CLAUDE.md #8) because we need to react to
   // state shape, not specific actions — many different actions can change a
-  // today task's title/isDone/projectId. Guarded with isApplyingRemoteOps() so
-  // hydration replay does not write. The single post-hydration emission is
-  // intentional: it pushes a fresh widget snapshot after a remote sync.
+  // today task's title/isDone/projectId, or the project/tag lists. Guarded with
+  // isApplyingRemoteOps() so hydration replay does not write. The single post-hydration
+  // emission is intentional: it pushes a fresh widget snapshot after a remote sync.
   pushOnStateChange$ =
     IS_ANDROID_WEB_VIEW &&
     createEffect(
       () =>
-        this._store.select(selectTodayWidgetRows).pipe(
+        combineLatest([
+          this._store.select(selectTodayWidgetRows),
+          this._store.select(selectUnarchivedProjects),
+          this._store.select(selectAllTags),
+        ]).pipe(
           filter(() => !this._hydrationState.isApplyingRemoteOps()),
           distinctUntilChanged(
-            (a, b) => a.length === b.length && rowsSignature(a) === rowsSignature(b),
+            (a, b) =>
+              a[0].length === b[0].length &&
+              rowsSignature(a[0]) === rowsSignature(b[0]) &&
+              a[1] === b[1] &&
+              a[2] === b[2],
           ),
           debounceTime(500),
           tap(() => {

@@ -9,7 +9,6 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import android.widget.RemoteViews
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.superproductivity.superproductivity.CapacitorMainActivity
 import com.superproductivity.superproductivity.R
 
@@ -27,24 +26,25 @@ class TaskListWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
+        Log.d(TAG, "Widget onReceive action = ${intent.action}")
 
         when (intent.action) {
             ACTION_MARK_DONE -> {
-                val taskId = intent.getStringExtra(EXTRA_TASK_ID)
-                if (taskId == null) {
-                    // Title taps fall through here because a ListView only has one
-                    // PendingIntentTemplate. The title's fill-in intent sets only
-                    // EXTRA_OPEN_APP, so detect that case and launch the app.
-                    if (intent.getBooleanExtra(EXTRA_OPEN_APP, false)) {
-                        context.startActivity(
-                            Intent(context, CapacitorMainActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                if (intent.getBooleanExtra(EXTRA_OPEN_APP, false)) {
+                    val taskId = intent.getStringExtra(EXTRA_TASK_ID)
+                    context.startActivity(
+                        Intent(context, CapacitorMainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+                            if (taskId != null) {
+                                putExtra("WIDGET_TASK_ID", taskId)
                             }
-                        )
-                    }
+                        }
+                    )
                     return
                 }
+
+                val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return
                 val targetDone = intent.getBooleanExtra(EXTRA_TARGET_DONE, true)
                 Log.d(TAG, "Toggle from widget: taskId=$taskId targetDone=$targetDone")
 
@@ -59,17 +59,13 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 )
                 appWidgetManager.notifyAppWidgetViewDataChanged(widgetIds, R.id.widget_task_list)
 
-                // Signal the live app (if any) to drain the queue. No task ID payload —
+                // Signal the live app (if any) to drain the queue. No task ID payload—
                 // the queue is the single source of truth.
-                LocalBroadcastManager.getInstance(context)
-                    .sendBroadcast(Intent(ACTION_WIDGET_DONE_LOCAL))
+                context.sendBroadcast(Intent(ACTION_WIDGET_DONE_LOCAL).apply {
+                    `package` = context.packageName
+                })
             }
-            ACTION_OPEN_APP -> {
-                val openIntent = Intent(context, CapacitorMainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
-                context.startActivity(openIntent)
-            }
+
             ACTION_TOGGLE_HIDE_DONE -> {
                 val nowHiding = WidgetSettings.toggleHideDone(context)
                 Log.d(TAG, "Toggled hideDone -> $nowHiding")
@@ -83,18 +79,26 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 mgr.notifyAppWidgetViewDataChanged(ids, R.id.widget_task_list)
                 for (id in ids) updateWidget(context, mgr, id)
             }
+
         }
     }
 
     companion object {
         private const val TAG = "TaskListWidget"
         const val ACTION_MARK_DONE = "com.superproductivity.superproductivity.WIDGET_MARK_DONE"
-        const val ACTION_OPEN_APP = "com.superproductivity.superproductivity.WIDGET_OPEN_APP"
         const val ACTION_WIDGET_DONE_LOCAL = "com.superproductivity.superproductivity.WIDGET_DONE_LOCAL"
         const val ACTION_TOGGLE_HIDE_DONE = "com.superproductivity.superproductivity.WIDGET_TOGGLE_HIDE_DONE"
         const val EXTRA_TASK_ID = "WIDGET_TASK_ID"
         const val EXTRA_OPEN_APP = "WIDGET_OPEN_APP"
         const val EXTRA_TARGET_DONE = "WIDGET_TARGET_DONE"
+
+        // PendingIntent request codes: Android uses these to distinguish cached PendingIntents
+        // that share the same action/component. Without unique codes, the system returns the same
+        // cached instance for every button, causing the wrong action to fire.
+        private const val RC_MARK_DONE = 101
+        private const val RC_TOGGLE_HIDE_DONE = 102
+        private const val RC_SELECT_CONTEXT = 103
+        private const val RC_OPEN_APP = 104
 
         fun notifyDataChanged(context: Context) {
             val appWidgetManager = AppWidgetManager.getInstance(context)
@@ -102,7 +106,11 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 ComponentName(context, TaskListWidgetProvider::class.java)
             )
             appWidgetManager.notifyAppWidgetViewDataChanged(widgetIds, R.id.widget_task_list)
+            for (id in widgetIds) {
+                updateWidget(context, appWidgetManager, id)
+            }
         }
+
 
         private fun updateWidget(
             context: Context,
@@ -122,7 +130,7 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 action = ACTION_MARK_DONE
             }
             val donePendingIntent = PendingIntent.getBroadcast(
-                context, 0, doneIntent,
+                context, RC_MARK_DONE, doneIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )
             views.setPendingIntentTemplate(R.id.widget_task_list, donePendingIntent)
@@ -131,7 +139,7 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
             val openAppPendingIntent = PendingIntent.getActivity(
-                context, 0, openAppIntent,
+                context, RC_OPEN_APP, openAppIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_header, openAppPendingIntent)
@@ -145,12 +153,33 @@ class TaskListWidgetProvider : AppWidgetProvider() {
                 action = ACTION_TOGGLE_HIDE_DONE
             }
             val togglePendingIntent = PendingIntent.getBroadcast(
-                context, 0, toggleIntent,
+                context, RC_TOGGLE_HIDE_DONE, toggleIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_toggle_hide_done, togglePendingIntent)
 
+            // Setup select list action
+            val selectIntent = Intent(context, WidgetListSelectActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            val selectPendingIntent = PendingIntent.getActivity(
+                context, RC_SELECT_CONTEXT, selectIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setOnClickPendingIntent(R.id.widget_select_context, selectPendingIntent)
+
+            // Header title is persisted by WidgetListSelectActivity when the user picks a context,
+            // so we never need to re-parse widget_data JSON here.
+            val currentId = WidgetSettings.getContextId(context)
+            val storedTitle = WidgetSettings.getContextTitle(context)
+            var headerTitle = storedTitle.ifEmpty { context.getString(R.string.widget_title) }
+            if (currentId != "TODAY" && !WidgetSettings.isShowAllTime(context)) {
+                headerTitle += context.getString(R.string.widget_header_suffix_today)
+            }
+            views.setTextViewText(R.id.widget_header, headerTitle)
+
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
+
     }
 }

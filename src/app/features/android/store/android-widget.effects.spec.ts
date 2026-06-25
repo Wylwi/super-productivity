@@ -18,6 +18,8 @@ describe('AndroidWidgetEffects - rowsSignature comparator', () => {
     projectId: null,
     color: null,
     projectTitle: null,
+    tagIds: null,
+    isToday: false,
     ...overrides,
   });
 
@@ -72,7 +74,13 @@ describe('AndroidWidgetEffects - rowsSignature comparator', () => {
   it('treats null projectId/color/projectTitle as the empty token', () => {
     // Defensive: nulls must serialize consistently — neighbouring fields must
     // not collide with each other.
-    expect(rowsSignature([row({ id: 'a' })])).toBe('a:0:Row:::');
+    expect(rowsSignature([row({ id: 'a' })])).toBe('a:0:Row::::0');
+  });
+
+  it('changes the signature when isToday changes', () => {
+    const before = rowsSignature([row({ id: 'a', isToday: false })]);
+    const after = rowsSignature([row({ id: 'a', isToday: true })]);
+    expect(before).not.toBe(after);
   });
 
   it('escapes nothing — fields containing the separator characters change the signature', () => {

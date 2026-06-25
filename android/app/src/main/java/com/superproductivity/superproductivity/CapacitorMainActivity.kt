@@ -13,6 +13,7 @@ import android.view.View
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.getcapacitor.BridgeActivity
@@ -222,9 +223,11 @@ class CapacitorMainActivity : BridgeActivity() {
         )
         isForegroundServiceFailureReceiverRegistered = true
 
-        LocalBroadcastManager.getInstance(this).registerReceiver(
+        ContextCompat.registerReceiver(
+            this,
             widgetDoneReceiver,
-            IntentFilter(TaskListWidgetProvider.ACTION_WIDGET_DONE_LOCAL)
+            IntentFilter(TaskListWidgetProvider.ACTION_WIDGET_DONE_LOCAL),
+            ContextCompat.RECEIVER_NOT_EXPORTED
         )
         isWidgetDoneReceiverRegistered = true
 
@@ -328,6 +331,18 @@ class CapacitorMainActivity : BridgeActivity() {
             // Also try push-based delivery (works on warm start)
             callJSInterfaceFunctionIfExists("next", "onReminderTap$", "'$sanitizedId'")
             intent.removeExtra("REMINDER_TASK_ID")
+            return
+        }
+
+        // Handle widget task tap
+        val widgetTaskId = intent.getStringExtra("WIDGET_TASK_ID")
+        if (widgetTaskId != null) {
+            val sanitizedId = widgetTaskId.replace(Regex("[^a-zA-Z0-9_-]"), "")
+            // Persist for pull-based retrieval (WebView may not be ready on cold start)
+            com.superproductivity.superproductivity.widget.WidgetLastTaskTap.setTaskId(this, sanitizedId)
+            // Also try push-based delivery (works on warm start)
+            callJSInterfaceFunctionIfExists("next", "onWidgetTaskTap$", "'$sanitizedId'")
+            intent.removeExtra("WIDGET_TASK_ID")
             return
         }
 
@@ -464,7 +479,7 @@ class CapacitorMainActivity : BridgeActivity() {
             isForegroundServiceFailureReceiverRegistered = false
         }
         if (isWidgetDoneReceiverRegistered) {
-            LocalBroadcastManager.getInstance(this).unregisterReceiver(widgetDoneReceiver)
+            unregisterReceiver(widgetDoneReceiver)
             isWidgetDoneReceiverRegistered = false
         }
         super.onDestroy()

@@ -28,6 +28,7 @@ import com.superproductivity.superproductivity.widget.ShareIntentQueue
 import com.superproductivity.superproductivity.widget.TaskListWidgetProvider
 import com.superproductivity.superproductivity.widget.WidgetDoneQueue
 import com.superproductivity.superproductivity.widget.WidgetTaskQueue
+import com.superproductivity.superproductivity.widget.WidgetLastTaskTap
 import org.json.JSONObject
 
 
@@ -311,6 +312,12 @@ class JavaScriptInterface(
     @JavascriptInterface
     fun getReminderTapQueue(): String? {
         return ReminderTapQueue.getAndClear(activity)
+    }
+
+    @Suppress("unused")
+    @JavascriptInterface
+    fun getWidgetTaskTapQueue(): String? {
+        return WidgetLastTaskTap.getAndClear(activity)
     }
 
     @Suppress("unused")

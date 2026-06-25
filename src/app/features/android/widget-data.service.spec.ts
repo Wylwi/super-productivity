@@ -9,98 +9,91 @@ describe('buildWidgetSnapshot', () => {
     projectId: null,
     color: null,
     projectTitle: null,
+    tagIds: null,
+    isToday: false,
     ...overrides,
   });
 
   it('uses v=1 and the provided timestamp', () => {
-    const snapshot = buildWidgetSnapshot([], 1700000000000);
+    const snapshot = buildWidgetSnapshot([], [], [], 1700000000000);
     expect(snapshot.v).toBe(1);
     expect(snapshot.ts).toBe(1700000000000);
   });
 
-  it('returns an empty tasks list and empty project map for no rows', () => {
-    const snapshot = buildWidgetSnapshot([], 0);
+  it('returns an empty tasks list and empty projects/tags maps for no data', () => {
+    const snapshot = buildWidgetSnapshot([], [], [], 0);
     expect(snapshot.tasks).toEqual([]);
     expect(snapshot.projects).toEqual({});
+    expect(snapshot.tags).toEqual({});
   });
 
-  it('keeps row order intact and drops the color/projectTitle fields from tasks', () => {
-    const rows: WidgetRow[] = [
-      row({ id: 'a', title: 'A', isDone: false, projectId: 'p1', color: '#fff' }),
-      row({ id: 'b', title: 'B', isDone: true }),
-    ];
-
-    const snapshot = buildWidgetSnapshot(rows, 0);
-
-    expect(snapshot.tasks).toEqual([
-      { id: 'a', title: 'A', isDone: false, projectId: 'p1' },
-      { id: 'b', title: 'B', isDone: true, projectId: null },
-    ]);
-  });
-
-  it('collects each referenced project once into the projects map', () => {
+  it('keeps row order intact and drops the color/projectTitle fields from tasks, defaulting tagIds', () => {
     const rows: WidgetRow[] = [
       row({
         id: 'a',
+        title: 'A',
+        isDone: false,
         projectId: 'p1',
-        projectTitle: 'Project One',
-        color: '#ff0000',
+        color: '#fff',
+        tagIds: ['t1'],
+        isToday: true,
       }),
-      row({ id: 'b', projectId: 'p1', projectTitle: 'Project One', color: '#ff0000' }),
-      row({
-        id: 'c',
-        projectId: 'p2',
-        projectTitle: 'Project Two',
-        color: '#00ff00',
-      }),
+      row({ id: 'b', title: 'B', isDone: true, tagIds: null, isToday: false }),
     ];
 
-    const snapshot = buildWidgetSnapshot(rows, 0);
+    const snapshot = buildWidgetSnapshot(rows, [], [], 0);
+
+    expect(snapshot.tasks).toEqual([
+      {
+        id: 'a',
+        title: 'A',
+        isDone: false,
+        projectId: 'p1',
+        tagIds: ['t1'],
+        isToday: true,
+      },
+      { id: 'b', title: 'B', isDone: true, projectId: null, tagIds: [], isToday: false },
+    ]);
+  });
+
+  it('collects projects from projectsList into the projects map', () => {
+    const projectsList = [
+      { id: 'p1', title: 'Project One', theme: { primary: '#ff0000' } },
+      { id: 'p2', title: 'Project Two', theme: {} },
+    ];
+
+    const snapshot = buildWidgetSnapshot([], projectsList, [], 0);
 
     expect(snapshot.projects).toEqual({
       p1: { title: 'Project One', color: '#ff0000' },
-      p2: { title: 'Project Two', color: '#00ff00' },
+      p2: { title: 'Project Two', color: null },
     });
   });
 
-  it('keeps the first project entry when later rows have different metadata', () => {
-    // Defensive: input projectTitle/color should be consistent per id, but
-    // if the upstream selector races, the snapshot should not flip mid-build.
-    const rows: WidgetRow[] = [
-      row({ id: 'a', projectId: 'p1', projectTitle: 'First', color: '#111' }),
-      row({ id: 'b', projectId: 'p1', projectTitle: 'Later', color: '#222' }),
+  it('collects tags from tagsList into the tags map, excluding TODAY', () => {
+    const tagsList = [
+      { id: 'TODAY', title: 'Today' },
+      { id: 't1', title: 'Tag One', color: '#00ff00' },
+      { id: 't2', title: 'Tag Two', theme: { primary: '#0000ff' } },
     ];
 
-    const snapshot = buildWidgetSnapshot(rows, 0);
+    const snapshot = buildWidgetSnapshot([], [], tagsList, 0);
 
-    expect(snapshot.projects.p1).toEqual({ title: 'First', color: '#111' });
+    expect(snapshot.tags).toEqual({
+      t1: { title: 'Tag One', color: '#00ff00' },
+      t2: { title: 'Tag Two', color: '#0000ff' },
+    });
   });
 
-  it('falls back to an empty title when projectTitle is null', () => {
-    const rows: WidgetRow[] = [
-      row({ id: 'a', projectId: 'p1', projectTitle: null, color: '#abc' }),
-    ];
-
-    const snapshot = buildWidgetSnapshot(rows, 0);
-
-    expect(snapshot.projects.p1).toEqual({ title: '', color: '#abc' });
+  it('falls back to empty string when project title is missing', () => {
+    const projectsList = [{ id: 'p1', theme: { primary: '#ff0000' } }];
+    const snapshot = buildWidgetSnapshot([], projectsList, [], 0);
+    expect(snapshot.projects.p1).toEqual({ title: '', color: '#ff0000' });
   });
 
-  it('preserves null color in the project map', () => {
-    const rows: WidgetRow[] = [
-      row({ id: 'a', projectId: 'p1', projectTitle: 'P1', color: null }),
-    ];
-
-    const snapshot = buildWidgetSnapshot(rows, 0);
-
-    expect(snapshot.projects.p1).toEqual({ title: 'P1', color: null });
-  });
-
-  it('does not emit an entry for rows without a projectId', () => {
-    const rows: WidgetRow[] = [row({ id: 'a', projectId: null })];
-
-    const snapshot = buildWidgetSnapshot(rows, 0);
-
-    expect(snapshot.projects).toEqual({});
+  it('falls back to empty string when tag title is missing', () => {
+    const tagsList = [{ id: 't1', color: '#00ff00' }];
+    const snapshot = buildWidgetSnapshot([], [], tagsList, 0);
+    expect(snapshot.tags!.t1).toEqual({ title: '', color: '#00ff00' });
   });
 });

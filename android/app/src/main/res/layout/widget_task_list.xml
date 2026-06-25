@@ -27,6 +27,17 @@
             android:fontFamily="sans-serif-medium" />
 
         <ImageView
+            android:id="@+id/widget_select_context"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:padding="4dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/widget_settings"
+            android:alpha="0.85"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="@string/widget_select_context_desc" />
+
+        <ImageView
             android:id="@+id/widget_toggle_hide_done"
             android:layout_width="32dp"
             android:layout_height="32dp"

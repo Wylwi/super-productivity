@@ -1,6 +1,6 @@
 import { createSelector } from '@ngrx/store';
 import { selectTodayTaskIds } from '../../work-context/store/work-context.selectors';
-import { selectTaskEntities } from '../../tasks/store/task.selectors';
+import { selectAllTasks } from '../../tasks/store/task.selectors';
 import { selectAllProjectColorsAndTitles } from '../../project/store/project.selectors';
 
 export interface WidgetRow {
@@ -10,20 +10,22 @@ export interface WidgetRow {
   projectId: string | null;
   color: string | null;
   projectTitle: string | null;
+  tagIds: string[] | null;
+  isToday: boolean;
 }
 
 type ProjectColorsAndTitles = Record<string, { color?: string | null; title?: string }>;
 
 export const selectTodayWidgetRows = createSelector(
   selectTodayTaskIds,
-  selectTaskEntities,
+  selectAllTasks,
   selectAllProjectColorsAndTitles,
-  (todayIds, entities, projects): WidgetRow[] => {
+  (todayIds, allTasks, projects): WidgetRow[] => {
     const projectMap = projects as ProjectColorsAndTitles;
+    const todaySet = new Set(todayIds);
     const undone: WidgetRow[] = [];
     const done: WidgetRow[] = [];
-    for (const id of todayIds) {
-      const t = entities[id];
+    for (const t of allTasks) {
       if (!t) continue;
       const projectId = t.projectId || null;
       const info = projectId ? projectMap[projectId] : undefined;
@@ -34,6 +36,8 @@ export const selectTodayWidgetRows = createSelector(
         projectId,
         color: info?.color ?? null,
         projectTitle: info?.title ?? null,
+        tagIds: t.tagIds || [],
+        isToday: todaySet.has(t.id),
       };
       (t.isDone ? done : undone).push(row);
     }

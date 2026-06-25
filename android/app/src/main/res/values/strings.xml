@@ -31,6 +31,16 @@
   <string name="widget_task_done">Mark task done</string>
   <string name="widget_pending_sync_desc">Done action pending — syncing with app</string>
   <string name="widget_toggle_hide_done_desc">Toggle visibility of completed tasks</string>
+  <string name="widget_select_context_desc">Select active list (Today, projects, tags)</string>
+  <string name="widget_header_suffix_today"> (Today)</string>
+  <string name="widget_select_title">Select List</string>
+  <string name="widget_select_show_all_time_label">Show all-time tasks</string>
+  <string name="widget_select_no_lists">No Lists Found</string>
+  <string name="widget_select_hint_all_time">Showing all tasks for the selected project/tag</string>
+  <string name="widget_select_hint_today">Showing ONLY today\'s tasks for the selected project/tag</string>
+  <string name="widget_context_type_today">Today</string>
+  <string name="widget_context_type_project">Project</string>
+  <string name="widget_context_type_tag">Tag</string>
 
   <!-- Startup overlay -->
   <string name="startup_overlay_add_task">Add task</string>

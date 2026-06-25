@@ -6,4 +6,14 @@
     <color name="statusBar">#f8f8f7</color>
     <color name="navigationBar">#f8f8f7</color>
 
+    <!-- Widget task list -->
+    <color name="widget_task_title">#FFFFFFFF</color>
+    <color name="widget_task_title_done">#80FFFFFF</color>
+    <!-- Widget context picker -->
+    <color name="widget_color_today">#FFB300</color>
+    <color name="widget_default_project_color">#00E676</color>
+    <color name="widget_default_tag_color">#29B6F6</color>
+    <color name="widget_select_overlay">#D9111116</color>
+    <color name="widget_divider">#444454</color>
+
 </resources>

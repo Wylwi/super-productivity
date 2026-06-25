@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
-import { tap } from 'rxjs/operators';
+import { from } from 'rxjs';
+import { concatMap, delay, map, tap } from 'rxjs/operators';
 import { SnackService } from '../../../core/snack/snack.service';
 import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
 import { DroidLog } from '../../../core/log';
@@ -8,6 +9,8 @@ import { androidInterface, AndroidShareData } from '../android-interface';
 import { TaskService } from '../../tasks/task.service';
 import { TaskAttachmentService } from '../../tasks/task-attachment/task-attachment.service';
 import { T } from '../../../t.const';
+import { NavigateToTaskService } from '../../../core-ui/navigate-to-task/navigate-to-task.service';
+import { DataInitStateService } from '../../../core/data-init/data-init-state.service';
 
 // TODO send message to electron when current task changes here
 
@@ -16,6 +19,8 @@ export class AndroidEffects {
   private _snackService = inject(SnackService);
   private _taskService = inject(TaskService);
   private _taskAttachmentService = inject(TaskAttachmentService);
+  private _navigateToTaskService = inject(NavigateToTaskService);
+  private _dataInitStateService = inject(DataInitStateService);
 
   handleShare$ =
     IS_ANDROID_WEB_VIEW &&
@@ -151,6 +156,16 @@ export class AndroidEffects {
             } catch (e) {
               DroidLog.err('Failed to process reminder tap queue on resume', e);
             }
+
+            try {
+              const tapTaskId = androidInterface.getWidgetTaskTapQueue?.();
+              if (tapTaskId) {
+                DroidLog.log('Resume: found widget task tap queue', tapTaskId);
+                androidInterface.onWidgetTaskTap$.next(tapTaskId);
+              }
+            } catch (e) {
+              DroidLog.err('Failed to process widget task tap queue on resume', e);
+            }
           }),
         ),
       { dispatch: false },
@@ -172,6 +187,32 @@ export class AndroidEffects {
               }
             } catch (e) {
               DroidLog.err('Failed to process pending share on resume', e);
+            }
+          }),
+        ),
+      { dispatch: false },
+    );
+
+  handleWidgetTaskTap$ =
+    IS_ANDROID_WEB_VIEW &&
+    createEffect(
+      () =>
+        this._dataInitStateService.isAllDataLoadedInitially$.pipe(
+          delay(800), // Ensure Angular router bootstrap and initial navigation is fully stable on cold start
+          concatMap(() => androidInterface.onWidgetTaskTap$),
+          concatMap((taskId) =>
+            from(this._navigateToTaskService.navigate(taskId)).pipe(
+              delay(300), // Let the active project/tag workview component fully mount and populate state
+              map(() => taskId),
+            ),
+          ),
+          tap((taskId) => {
+            try {
+              if (this._taskService.selectedTaskId() !== taskId) {
+                this._taskService.setSelectedId(taskId);
+              }
+            } catch (e) {
+              DroidLog.warn('Could not select task after widget tap', e);
             }
           }),
         ),
