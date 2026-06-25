@@ -1,4 +1,5 @@
 <!-- pyml disable md041 -->
+
 ## [[1.00-Quickstarts]]
 
 - [[1.01-First-Steps]]
@@ -18,6 +19,7 @@
 - [[2.08-Choose-Sync-Backend]]
 - [[2.09-Configure-Sync-Backend]]
 - [[2.13-Run-with-Docker]]
+- [[2.19-Android-Home-Screen-Widget]]
 
 ### Contributing to Super-Productivity
 
